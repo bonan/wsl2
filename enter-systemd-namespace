@@ -1,0 +1,23 @@
+#!/bin/bash
+
+SYSTEMD_PID="$(pgrep -o -x systemd)"
+if [ -z "$SYSTEMD_PID" ]; then
+    while [ -z "$SYSTEMD_PID" ]; do
+        SYSTEMD_PID="$(pgrep -o -x systemd)"
+        sleep 0.1
+    done
+fi
+
+if [ -n "$SYSTEMD_PID" ] && [ "$SYSTEMD_PID" != "1" ]; then
+    argv="$(printf '%q' "$1")"
+    shift
+    while [ -n "$*" ]; do
+       argv+=" $(printf '%q' "$1")"
+       shift
+    done
+
+    export XDG_RUNTIME_DIR=/run/user/$UID
+    user_shell="$(getent passwd $USER | cut -d ':' -f 7)"
+    exec /usr/bin/nsenter -t "$SYSTEMD_PID" -a \
+        /bin/bash --login -c "cd '$(pwd)'; exec $argv"
+fi
